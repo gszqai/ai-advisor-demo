@@ -3,7 +3,7 @@
 > **从盘前到客户，AI 投顾全链路交互 Demo**
 > 一个链接，点开就能玩。评委扫码自己点出来的效果，比讲 10 分钟更强。
 
-[![Live Demo](https://img.shields.io/badge/Demo-在线体验-2f6bff?style=flat-square)](https://你的用户名.github.io/ai-advisor-demo/)
+[![Live Demo](https://img.shields.io/badge/Demo-在线体验-2f6bff?style=flat-square)](https://gszqai.github.io/ai-advisor-demo/)
 [![POC](https://img.shields.io/badge/POC-%231%20%2B%20%236-10b981?style=flat-square)](#对应比赛-poc)
 [![Stack](https://img.shields.io/badge/Stack-Cron%20%2B%20MCP%20%2B%20Agent%20%2B%20Web-8b5cf6?style=flat-square)](#技术方案)
 
@@ -354,13 +354,13 @@ git init
 git add .
 git commit -m "feat: 国盛智投AI助手 AI 投顾全链路 Demo"
 git branch -M main
-git remote add origin https://github.com/你的用户名/ai-advisor-demo.git
+git remote add origin https://github.com/gszqai/ai-advisor-demo.git
 git push -u origin main
 ```
 
 然后：仓库 → **Settings** → **Pages** → Source 选 `main` / `root` → 保存。
 
-约 1 分钟后访问：`https://你的用户名.github.io/ai-advisor-demo/`
+约 1 分钟后访问：`https://gszqai.github.io/ai-advisor-demo/`
 
 > **现场演示建议**：把这个链接生成二维码，投屏时直接让评委扫码。评委自己点出来的效果，比你讲 10 倍。
 
