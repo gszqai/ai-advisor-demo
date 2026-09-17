@@ -1,0 +1,21 @@
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# Node / tooling (this project has no build step, but keep them out)
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# Test harness / temp scratch files
+.cowork-temp/
+v3test.js
+*.tmp.node
+claude-*-cwd
+
+# Local server logs
+*.log

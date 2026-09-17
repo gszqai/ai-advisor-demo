@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>国盛智投AI助手 · AI 投顾全链路 Demo</title>
+<meta name="description" content="从盘前到客户，AI 投顾全链路交互 Demo。Cron + MCP + Agent + 合规审查，一个链接即可体验。">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ==================== 顶栏 ==================== -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-logo">📈</div>
+        <div class="brand-text">
+          <b>国盛智投AI助手</b>
+          <span>GUOSHENG AI ADVISOR</span>
+        </div>
+      </div>
+
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="market">① 盘前简报</button>
+        <button class="tab-btn" data-tab="client">② 客户持仓</button>
+        <button class="tab-btn" data-tab="send">③ 一键发送</button>
+      </nav>
+
+      <div class="live-dot">DEMO ONLINE</div>
+    </div>
+  </header>
+
+  <!-- ==================== 英雄区 ==================== -->
+  <section class="hero">
+    <div class="hero-tag">⚡ 简报 × 持仓 × 产品 · 三方融合全链路</div>
+    <h1>让 AI 跑完<em>从盘前到客户</em>的每一环</h1>
+    <p>点击触发 Cron，生成以国内政策为主导（国内 60% / 海外 40%）的盘前简报；结合真实客户持仓与公司产品池，一键产出可推送的合规服务文案。</p>
+  </section>
+
+  <!-- ============================================================
+       Tab 1 · 盘前简报（引擎一）
+       ============================================================ -->
+  <section class="tab-panel active" data-tab="market">
+
+    <!-- 隔夜美股 -->
+    <div class="strip-label"><span>🌎 隔夜美股收盘</span><em>OVERSEAS OVERNIGHT</em></div>
+    <div class="market-strip" id="market-strip"></div>
+
+    <!-- A 股昨日收盘 -->
+    <div class="strip-label"><span>🇨🇳 A 股昨日收盘</span><em>PREVIOUS CLOSE</em></div>
+    <div class="market-strip cn" id="cn-market-strip"></div>
+
+    <!-- 宏观变量 -->
+    <div class="strip-label"><span>📉 关键变量</span><em>MACRO VARIABLES · 国内优先 / 海外次之</em></div>
+    <div class="macro-strip" id="macro-strip"></div>
+
+    <!-- 信源配比 -->
+    <div class="news-ratio" id="news-ratio"></div>
+
+    <!-- ============ 隔夜资讯聚合（多源交叉验证） ============ -->
+    <div class="card news-card">
+      <div class="card-head">
+        <span class="card-icon">📡</span>
+        <div>
+          <h2>隔夜资讯聚合 · 多源交叉验证</h2>
+          <div class="sub">10 CHANNELS · CROSS-VERIFIED · 78 RAW → 15 SELECTED · 国内 60% / 海外 40%</div>
+        </div>
+        <div class="head-right">
+          <button class="btn btn-sm btn-ghost" id="btn-legend">ⓘ 优先级规则</button>
+        </div>
+      </div>
+
+      <div class="news-legend hidden" id="news-legend">
+        <div class="nl-row"><span class="vdot top"></span><b>最高优先级</b> 全渠道覆盖的重大宏观事件，强制置顶并编入简报核心驱动链条</div>
+        <div class="nl-row"><span class="vdot high"></span><b>高优先级</b> ≥4 个独立渠道共同报道，优先编入简报正文</div>
+        <div class="nl-row"><span class="vdot mid"></span><b>中优先级</b> 3 个渠道，或 2 个且含高优先级渠道，次选编入</div>
+        <div class="nl-row"><span class="vdot low"></span><b>低置信</b> 单一来源，仅在权威终端或独家方向时采纳</div>
+      </div>
+
+      <div class="news-list" id="news-list"></div>
+    </div>
+
+    <div class="grid-2-13">
+      <!-- 左：Cron 链路终端 -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-icon">⏰</span>
+          <div>
+            <h2>Cron 调度链路</h2>
+            <div class="sub">SCHEDULER · 08:00 DAILY</div>
+          </div>
+        </div>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="term-dot r"></span>
+            <span class="term-dot y"></span>
+            <span class="term-dot g"></span>
+            <span class="term-title">advisor-pipeline — live log</span>
+          </div>
+          <div class="log-stream" id="log-stream">
+            <div class="log-hint">等待触发…点击下方「▶ 手动触发 Cron」开始全链路演示</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:9px;margin-top:14px">
+          <button class="btn btn-primary" id="btn-run-cron" style="flex:1">▶ 手动触发 Cron</button>
+          <button class="btn btn-ghost btn-sm" id="btn-reset-cron">↺ 重置</button>
+        </div>
+
+        <!-- 状态灯 -->
+        <div class="status-rail">
+          <div class="status-item"><span class="dot gray" id="st-cron"></span>Cron 调度</div>
+          <div class="status-item"><span class="dot gray" id="st-mcp"></span>MCP 数据源</div>
+          <div class="status-item"><span class="dot gray" id="st-news"></span>资讯聚合</div>
+          <div class="status-item"><span class="dot gray" id="st-ai"></span>Agent 生成</div>
+          <div class="status-item"><span class="dot gray" id="st-compliance"></span>合规审查</div>
+          <div class="status-item"><span class="dot gray" id="st-push"></span>推送通道</div>
+        </div>
+      </div>
+
+      <!-- 右：简报输出 -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-icon">📝</span>
+          <div>
+            <h2>盘前简报生成</h2>
+            <div class="sub">AGENT OUTPUT · 596 WORDS · 国内主导</div>
+          </div>
+          <div class="head-right">
+            <button class="btn btn-sm btn-ghost hidden" id="btn-compare">📊 对比人工版本</button>
+          </div>
+        </div>
+
+        <div id="brief-placeholder" class="brief-placeholder">
+          尚未生成<br>
+          <span style="font-size:12px">触发左侧 Cron 后，AI 将在 5 秒内输出完整盘前简报</span>
+        </div>
+
+        <div id="brief-wrapper" class="hidden">
+          <div id="brief-skeleton" class="brief-skeleton hidden">
+            <div class="sk-line" style="width:88%"></div>
+            <div class="sk-line" style="width:96%"></div>
+            <div class="sk-line" style="width:74%"></div>
+            <div class="sk-line" style="width:91%"></div>
+            <div class="sk-line" style="width:62%"></div>
+            <div class="sk-line" style="width:84%"></div>
+            <div class="sk-line" style="width:45%"></div>
+          </div>
+          <div class="brief-output" id="brief-output"></div>
+
+          <div class="copy-meta hidden" id="brief-meta">
+            <span>📄 字数 <b id="brief-len">0</b></span>
+            <span>⏱️ 生成耗时 <b>2.1s</b></span>
+            <span>🛡️ 合规状态 <b style="color:var(--green)">已通过</b></span>
+            <span>🤖 模型 <b>advisor-llm-v3</b></span>
+          </div>
+        </div>
+
+        <!-- 人工对比 -->
+        <div class="compare-panel hidden" id="compare-panel">
+          <div class="compare-grid">
+            <div class="compare-col win">
+              <h4>🤖 AI 版本 · 2.1 秒</h4>
+              <div class="body" id="ai-out-ref"></div>
+            </div>
+            <div class="compare-col">
+              <h4>👤 投顾人工版本 · 42 分钟</h4>
+              <div class="body" id="human-output"></div>
+            </div>
+          </div>
+          <div class="stat-grid" id="stat-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部状态条 -->
+    <div class="card hidden" id="action-bar">
+      <div class="card-head mb-0">
+        <span class="card-icon">✅</span>
+        <div>
+          <h2>链路执行完成</h2>
+          <div class="sub">PIPELINE 5/5 STAGES PASSED</div>
+        </div>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-dim);line-height:1.9">
+        全链路耗时 <b style="color:var(--cyan);font-family:var(--mono)">6 秒</b>（生产环境含真实接口调用约 8-12 秒），
+        替代投顾老师平均 <b style="color:var(--cyan);font-family:var(--mono)">42 分钟</b> 的盘前整理工作。
+        所有输出经合规审查后才进入下发通道，全流程留痕可追溯。
+      </p>
+    </div>
+
+    <!-- ============ 盘前简报 QA ============ -->
+    <div class="card qa-card">
+      <div class="card-head">
+        <span class="card-icon">💡</span>
+        <div>
+          <h2>盘前简报 · 高频问答</h2>
+          <div class="sub">投研团队内部讨论沉淀 · <span id="qa-count">0</span> 问</div>
+        </div>
+        <div class="head-right">
+          <div class="qa-filter" id="qa-filter"></div>
+        </div>
+      </div>
+      <div class="qa-list" id="qa-list"></div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================
+       Tab 2 · 客户持仓（引擎二）
+       ============================================================ -->
+  <section class="tab-panel" data-tab="client">
+
+    <!-- 客户切换 -->
+    <div class="client-switch" id="client-switch"></div>
+
+    <div class="client-toolbar">
+      <div class="ct-left">
+        <span class="ct-hint">💡 支持新增客户、编辑档案与持仓、添加理财产品 —— 数据保存在本地浏览器</span>
+      </div>
+      <div class="ct-right">
+        <button class="btn btn-sm btn-ghost" id="btn-reset-data">↺ 恢复初始数据</button>
+        <button class="btn btn-sm btn-primary" id="btn-add-client">＋ 新增客户</button>
+      </div>
+    </div>
+
+    <div class="grid-2-13">
+      <!-- 左：客户档案 + 组合风险 -->
+      <div>
+        <div class="card" id="client-profile"></div>
+
+        <div class="card risk-panel">
+          <div style="font-size:11.5px;color:var(--text-faint);font-family:var(--mono);margin-bottom:9px">PORTFOLIO RISK SCORE</div>
+          <div class="risk-big low" id="portfolio-risk">0.0</div>
+          <div class="risk-label low" id="portfolio-risk-label">低风险</div>
+
+          <div class="risk-scale">
+            <div class="risk-seg" style="background:var(--green);opacity:.9"></div>
+            <div class="risk-seg" style="background:var(--green);opacity:.6"></div>
+            <div class="risk-seg" style="background:var(--amber);opacity:.75"></div>
+            <div class="risk-seg" style="background:var(--red);opacity:.6"></div>
+            <div class="risk-seg" style="background:var(--red);opacity:.9"></div>
+          </div>
+          <div class="risk-legend"><span>1 保守</span><span>3 均衡</span><span>5 激进</span></div>
+
+          <p style="font-size:11px;color:var(--text-faint);margin-top:16px;line-height:1.8;text-align:left">
+            组合风险分由持仓波动率、估值分位、行业景气度、流动性四维加权计算，与客户风险承受等级比对后可识别错配。
+          </p>
+        </div>
+      </div>
+
+      <!-- 右：持仓列表 -->
+      <div>
+        <div class="card" style="margin-bottom:13px;padding:14px 18px">
+          <div class="holdings-bar">
+            <div style="display:flex;align-items:center;gap:9px">
+              <span class="card-icon">💼</span>
+              <div>
+                <h2 style="font-size:14px">持仓穿透分析</h2>
+                <div class="sub" style="font-size:11px;color:var(--text-faint);font-family:var(--mono)">点击「生成分析」查看产业链 + 基本面 + 风险拆解</div>
+              </div>
+            </div>
+            <div class="holdings-actions">
+              <span class="weight-total" id="weight-total">合计仓位 0%</span>
+              <button class="btn btn-sm btn-ghost" id="btn-add-holding">＋ 添加股票</button>
+              <button class="btn btn-sm btn-product" id="btn-add-product">＋ 添加理财产品</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="holdings-list"></div>
+
+        <div class="next-step-hint hidden" id="next-step-hint"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============================================================
+       Tab 3 · 一键发送（引擎二）
+       ============================================================ -->
+  <section class="tab-panel" data-tab="send">
+
+    <div class="grid-2">
+      <!-- 左：文案生成 + 合规 -->
+      <div>
+        <!-- 步骤 1 -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">①</span>
+            <div>
+              <h2>选择客户 · 生成服务文案</h2>
+              <div class="sub">COPYWRITER AGENT · 简报 × 持仓 × 产品 三方融合</div>
+            </div>
+          </div>
+
+          <div class="chip-row" id="send-client" style="margin-bottom:15px"></div>
+
+          <button class="btn btn-primary" id="btn-gen-copy" style="width:100%">⚡ 生成服务文案</button>
+
+          <div class="copy-placeholder" id="copy-placeholder">选择客户后点击生成，AI 将基于其持仓输出 ≤500 字服务文案</div>
+
+          <div class="hidden" id="copy-card">
+            <div class="copy-products hidden" id="copy-products"></div>
+            <div class="copy-output" id="copy-output" style="margin-top:15px"></div>
+            <div class="copy-meta hidden" id="copy-meta">
+              <span>📄 字数 <b id="copy-len">0</b></span>
+              <span>✅ 已含免责声明</span>
+              <span>🚫 无买卖建议</span>
+              <span id="copy-prod-count">🎁 已附带 0 只产品</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步骤 2 -->
+        <div class="card hidden" id="step-products">
+          <div class="card-head">
+            <span class="card-icon">②</span>
+            <div>
+              <h2>产品匹配推荐</h2>
+              <div class="sub">PRODUCT MATCHING · 适当性校验</div>
+            </div>
+            <div class="head-right">
+              <span class="match-badge" id="match-badge">—</span>
+            </div>
+          </div>
+
+          <div class="product-filter" id="product-filter"></div>
+          <div class="product-list" id="product-list"></div>
+
+          <div class="product-legend">
+            <span>✅ 风险等级 ≤ 客户承受等级，适当性通过</span>
+            <span>🚫 超出风险等级，系统自动隐藏</span>
+          </div>
+        </div>
+
+        <!-- 步骤 3 -->
+        <div class="card hidden" id="step-compliance">
+          <div class="card-head">
+            <span class="card-icon">③</span>
+            <div>
+              <h2>合规校验</h2>
+              <div class="sub">COMPLIANCE AGENT · 6 CHECKS</div>
+            </div>
+          </div>
+          <button class="btn btn-amber" id="btn-compliance" style="width:100%">🛡️ 合规校验</button>
+          <div class="hidden mt-16" id="step-compliance-result">
+            <div class="compliance-list" id="compliance-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：渠道 + 发送 + 手机 -->
+      <div>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">④</span>
+            <div>
+              <h2>选择渠道 · 一键发送</h2>
+              <div class="sub">DELIVERY CHANNEL</div>
+            </div>
+          </div>
+
+          <div class="channel-list" id="channel-list" style="margin-bottom:15px"></div>
+
+          <div class="receipt" style="background:rgba(255,255,255,0.03);border-color:var(--border);margin:0 0 15px">
+            <div class="receipt-row"><span>发送对象</span><b id="send-target">—</b></div>
+            <div class="receipt-row"><span>发送渠道</span><b id="send-channel">企业微信</b></div>
+            <div class="receipt-row"><span>附带产品</span><b id="send-products">—</b></div>
+          </div>
+
+          <div class="hidden" id="step-send">
+            <button class="btn btn-green" id="btn-send" style="width:100%">📤 一键发送</button>
+          </div>
+
+          <div class="send-progress-wrap hidden" id="send-progress-wrap">
+            <div class="send-progress"><div class="send-progress-fill" id="send-progress-fill"></div></div>
+            <div class="send-status" id="send-status">准备中…</div>
+          </div>
+
+          <div class="phone-wrap hidden" id="phone-wrap">
+            <div class="phone">
+              <div class="phone-notch"></div>
+              <div class="phone-head">
+                <div class="phone-app">📈</div>
+                <div class="phone-app-name">智投顾问</div>
+              </div>
+              <div class="phone-bubble" id="phone-bubble">
+                <div class="phone-msg-client" id="phone-msg-client">李女士</div>
+                <div id="phone-msg-text"></div>
+              </div>
+              <div class="phone-badge hidden" id="phone-badge">已送达</div>
+            </div>
+          </div>
+
+          <div class="receipt hidden" id="send-receipt">
+            <div class="receipt-title">✅ 送达回执</div>
+            <div class="receipt-row"><span>接收人</span><b id="receipt-target">—</b></div>
+            <div class="receipt-row"><span>通道</span><b id="receipt-channel">—</b></div>
+            <div class="receipt-row"><span>附带产品</span><b id="receipt-products">—</b></div>
+            <div class="receipt-row"><span>送达时间</span><b id="receipt-time">—</b></div>
+            <div class="receipt-row"><span>合规留痕</span><b>已归档 · 可追溯</b></div>
+          </div>
+
+          <div style="display:flex;gap:9px;margin-top:15px">
+            <button class="btn btn-egg btn-sm" id="btn-egg" style="flex:1">🎯 试试合规拦截（彩蛋）</button>
+            <button class="btn btn-ghost btn-sm" id="btn-reset-send">↺ 重置</button>
+          </div>
+        </div>
+
+        <div class="card" style="background:rgba(139,92,246,0.05);border-color:rgba(139,92,246,0.24)">
+          <div style="font-size:12.5px;color:#c4b5fd;font-weight:600;margin-bottom:8px">🛡️ 合规护城河</div>
+          <p style="font-size:12px;color:var(--text-dim);line-height:1.95">
+            AI 输出层强制经过三重闸门：敏感词库比对 → 收益承诺检测 → 买卖建议识别。
+            任一命中即阻断下发并回退人工复核队列。所有文案强制附加免责声明，全流程留痕可追溯。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ==================== 彩蛋弹窗 ==================== -->
+<div class="modal-mask hidden" id="egg-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span style="font-size:19px">🛡️</span>
+      <h3>合规拦截演示</h3>
+      <button class="modal-close" id="egg-close">×</button>
+    </div>
+    <p class="modal-sub">
+      模拟文案进入下发通道前的合规闸门。试着输入含有违规表述的文案，看看会发生什么 ——
+      例如「稳赚」「保本」「必涨」「零风险」。
+    </p>
+    <textarea class="egg-input" id="egg-input" rows="3">这只票稳赚，闭眼买就行</textarea>
+    <button class="btn btn-egg" id="btn-egg-run" style="width:100%">🔍 执行合规审查</button>
+    <div class="hidden mt-16" id="egg-result"></div>
+  </div>
+</div>
+
+<!-- ==================== 客户编辑弹窗 ==================== -->
+<div class="modal-mask hidden" id="client-modal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span style="font-size:19px">👤</span>
+      <h3 id="client-modal-title">新增客户</h3>
+      <button class="modal-close" id="client-modal-close">×</button>
+    </div>
+    <p class="modal-sub">填写客户档案信息，风险等级决定后续产品推荐的适当性范围。</p>
+
+    <div class="form-grid">
+      <label class="form-item">
+        <span>客户姓名</span>
+        <input type="text" id="cf-name" placeholder="如：赵先生">
+      </label>
+      <label class="form-item">
+        <span>风险测评等级</span>
+        <select id="cf-risk">
+          <option value="C1">C1 保守型</option>
+          <option value="C2">C2 稳健型</option>
+          <option value="C3">C3 平衡型</option>
+          <option value="C4">C4 成长型</option>
+          <option value="C5">C5 进取型</option>
+        </select>
+      </label>
+      <label class="form-item">
+        <span>总资产（万）</span>
+        <input type="text" id="cf-aum" placeholder="如：215 万">
+      </label>
+      <label class="form-item">
+        <span>换手率</span>
+        <select id="cf-turnover">
+          <option value="低">低</option>
+          <option value="中">中</option>
+          <option value="高">高</option>
+        </select>
+      </label>
+      <label class="form-item">
+        <span>持仓行业/风格</span>
+        <input type="text" id="cf-style" placeholder="如：科技 / 股债 / 私募">
+      </label>
+      <label class="form-item">
+        <span>有无买过产品</span>
+        <select id="cf-bought">
+          <option value="有">有</option>
+          <option value="无">无</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="form-item form-full">
+      <span>客户画像摘要</span>
+      <textarea id="cf-summary" rows="2" placeholder="描述客户的风险偏好、收益目标、可承受回撤等"></textarea>
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="client-modal-cancel">取消</button>
+      <button class="btn btn-primary" id="client-modal-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 持仓编辑弹窗 ==================== -->
+<div class="modal-mask hidden" id="holding-modal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span style="font-size:19px">📊</span>
+      <h3 id="holding-modal-title">添加持仓</h3>
+      <button class="modal-close" id="holding-modal-close">×</button>
+    </div>
+    <p class="modal-sub" id="holding-modal-sub">填写标的信息。代码填 6 位股票/ETF 代码，或理财产品代码。</p>
+
+    <div class="form-grid">
+      <label class="form-item">
+        <span>代码</span>
+        <input type="text" id="hf-code" placeholder="如：600519">
+      </label>
+      <label class="form-item">
+        <span>名称</span>
+        <input type="text" id="hf-name" placeholder="如：贵州茅台">
+      </label>
+      <label class="form-item">
+        <span>资产类型</span>
+        <select id="hf-type">
+          <option value="股票">股票</option>
+          <option value="ETF">ETF</option>
+          <option value="公募基金">公募基金</option>
+          <option value="资管产品">资管产品</option>
+          <option value="私募基金">私募基金</option>
+          <option value="债券">债券</option>
+        </select>
+      </label>
+      <label class="form-item">
+        <span>行业/策略</span>
+        <input type="text" id="hf-industry" placeholder="如：食品饮料">
+      </label>
+      <label class="form-item">
+        <span>仓位占比 (%)</span>
+        <input type="number" id="hf-weight" step="0.1" min="0" max="100" placeholder="如：12.5">
+      </label>
+      <label class="form-item">
+        <span>盈亏率 (%)</span>
+        <input type="number" id="hf-pnl" step="0.01" placeholder="如：-8.55">
+      </label>
+      <label class="form-item">
+        <span>风险打分 (1-5)</span>
+        <input type="number" id="hf-risk" step="0.1" min="1" max="5" placeholder="如：3.2">
+      </label>
+    </div>
+
+    <label class="form-item form-full">
+      <span>产业链位置</span>
+      <textarea id="hf-chain" rows="2" placeholder="描述该标的在产业链中的位置与传导逻辑"></textarea>
+    </label>
+
+    <label class="form-item form-full">
+      <span>基本面亮点</span>
+      <textarea id="hf-fundamental" rows="2" placeholder="描述基本面亮点、财务指标、估值水平等"></textarea>
+    </label>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="holding-modal-cancel">取消</button>
+      <button class="btn btn-primary" id="holding-modal-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 产品选择弹窗 ==================== -->
+<div class="modal-mask hidden" id="product-modal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span style="font-size:19px">🏦</span>
+      <h3>添加理财产品到持仓</h3>
+      <button class="modal-close" id="product-modal-close">×</button>
+    </div>
+    <p class="modal-sub" id="product-modal-sub">从国盛证券产品池中选择，添加后仓位可自行调整。</p>
+
+    <div class="product-filter" id="pm-filter"></div>
+    <div class="product-list" id="pm-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="product-modal-cancel">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Toast ==================== -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
