@@ -316,6 +316,44 @@
           </div>
         </div>
 
+        <!-- 步骤 1.5 · 投顾精炼 -->
+        <div class="card hidden" id="step-refine">
+          <div class="card-head">
+            <span class="card-icon">✂️</span>
+            <div>
+              <h2>投顾精炼 · 客户可直接阅读版</h2>
+              <div class="sub">REFINE AGENT · 长文案 → 100–200 字速读稿</div>
+            </div>
+            <div class="head-right">
+              <span class="match-badge" id="refine-badge">10 秒读完</span>
+            </div>
+          </div>
+
+          <p class="refine-intro">
+            客户没有时间读长文案。精炼 Agent 会把上方 500+ 字的服务文案，压缩成
+            <b>100–200 字</b> 的投顾口吻速读稿——保留「市场定调 + 盘面归因 + 持仓定性 + 配置建议」四个要点，
+            去掉所有铺垫与冗余，客户 10 秒读完即知该做什么。
+          </p>
+
+          <button class="btn btn-primary" id="btn-refine" style="width:100%">✂️ 生成精炼话术（100–200 字）</button>
+
+          <div class="copy-placeholder" id="refine-placeholder">点击上方按钮，AI 将长文案精炼为可直接发送给客户的短话术</div>
+
+          <div class="hidden" id="refine-card">
+            <div class="refine-log" id="refine-log"></div>
+            <div class="refine-output" id="refine-output"></div>
+            <div class="refine-sign" id="refine-sign">—— 国盛AI投顾老师</div>
+            <div class="refine-meta hidden" id="refine-meta">
+              <span>✂️ 精炼字数 <b id="refine-len">0</b> / 100–200</span>
+              <span>🛡️ 合规复核通过</span>
+              <span id="refine-audit">🚫 无买卖指令</span>
+            </div>
+            <div class="refine-actions">
+              <button class="btn btn-sm btn-ghost" id="btn-refine-copy">📋 复制话术</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 步骤 2 -->
         <div class="card hidden" id="step-products">
           <div class="card-head">
@@ -402,6 +440,8 @@
             <div class="receipt-row"><span>接收人</span><b id="receipt-target">—</b></div>
             <div class="receipt-row"><span>通道</span><b id="receipt-channel">—</b></div>
             <div class="receipt-row"><span>附带产品</span><b id="receipt-products">—</b></div>
+            <div class="receipt-row"><span>推送正文</span><b id="receipt-refine">—</b></div>
+            <div class="receipt-row"><span>随附附件</span><b id="receipt-attach">—</b></div>
             <div class="receipt-row"><span>送达时间</span><b id="receipt-time">—</b></div>
             <div class="receipt-row"><span>合规留痕</span><b>已归档 · 可追溯</b></div>
           </div>

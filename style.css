@@ -635,6 +635,46 @@ button { font-family: var(--sans); }
 .copy-meta { display: flex; gap: 14px; align-items: center; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-faint); font-family: var(--mono); flex-wrap: wrap; }
 .copy-meta b { color: var(--cyan); font-weight: 600; }
 
+/* 投顾精炼 */
+.refine-intro {
+  font-size: 12.5px; line-height: 1.85; color: var(--text-faint);
+  margin: 0 0 15px; padding: 12px 14px;
+  background: rgba(16, 185, 129, 0.05);
+  border-left: 3px solid var(--green);
+  border-radius: 0 8px 8px 0;
+}
+.refine-intro b { color: var(--green); font-weight: 600; }
+
+.refine-log { display: flex; flex-direction: column; gap: 6px; margin-top: 15px; }
+.refine-log-row {
+  font-size: 11.5px; color: var(--text-faint);
+  font-family: var(--mono); padding: 2px 0;
+}
+
+.refine-output {
+  font-size: 14px; line-height: 2.1; white-space: pre-wrap; word-break: break-word;
+  margin-top: 13px; padding: 17px 19px;
+  background: linear-gradient(135deg, rgba(16,185,129,0.07), rgba(6,182,212,0.05));
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 12px;
+}
+.refine-output.typing::after { content: '▌'; color: var(--green); animation: caret 0.9s steps(1) infinite; }
+
+.refine-sign {
+  text-align: right; font-size: 12.5px; color: var(--green);
+  margin-top: 9px; font-weight: 600; letter-spacing: 0.3px;
+}
+
+.refine-meta {
+  display: flex; gap: 14px; align-items: center; margin-top: 13px; padding-top: 12px;
+  border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-faint);
+  font-family: var(--mono); flex-wrap: wrap;
+}
+.refine-meta b { font-weight: 600; }
+.refine-meta #refine-audit.warn { color: var(--amber); }
+
+.refine-actions { display: flex; gap: 9px; margin-top: 13px; }
+
 /* 合规校验 */
 .compliance-list { display: flex; flex-direction: column; gap: 9px; }
 .compliance-row {
@@ -691,6 +731,9 @@ button { font-family: var(--sans); }
   font-size: 12px;
   line-height: 1.7;
   opacity: 0;
+  /* 精炼稿是多段文本，推送预览必须保留换行 */
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .phone-bubble.fly-in { animation: flyIn 0.6s cubic-bezier(0.22,1,0.36,1) forwards; }
 @keyframes flyIn {

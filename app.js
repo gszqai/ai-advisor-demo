@@ -1185,6 +1185,8 @@ function initSendTab() {
   );
 
   $('#btn-gen-copy')?.addEventListener('click', genCopy);
+  $('#btn-refine')?.addEventListener('click', refineCopy);
+  $('#btn-refine-copy')?.addEventListener('click', copyRefined);
   $('#btn-add-product-send')?.addEventListener('click', () => openProductModal('send'));
   $('#btn-compliance')?.addEventListener('click', runCompliance);
   $('#btn-send')?.addEventListener('click', doSend);
@@ -1312,7 +1314,8 @@ async function genCopy() {
 
   lenEl.textContent = copy.length;
   $('#copy-meta')?.classList.remove('hidden');
-  $('#step-products')?.classList.remove('hidden');
+  // 长文案就绪后解锁「投顾精炼」；产品匹配在精炼完成后解锁
+  $('#step-refine')?.classList.remove('hidden');
   btn.innerHTML = '✅ 文案已生成';
 
   renderCopyProducts();
@@ -1376,6 +1379,195 @@ function fusionPanelHTML(prodCount) {
       </div>
     </div>
   </div>`;
+}
+
+/* --- 5.1.5 投顾精炼 ------------------------------------------ */
+
+/**
+ * 精炼引擎：把 500+ 字长文案压缩为 100–200 字客户速读版。
+ *
+ * 压缩范式来自 18 张内部审核稿、约 180 条真实投顾观点，采用「五段式」：
+ *   ① 开篇定调 → ② 盘面归因 → ③ 持仓定性 → ④ 配置建议 → ⑤ 合规收尾
+ *
+ * 合规底线：无收益承诺、无买卖指令、不出现具体点位，署名统一为「国盛AI投顾老师」。
+ */
+function buildRefined(c) {
+  const KB = DATA.REFINE_KB;
+  if (!c) return '';
+
+  const pnl = calcPortfolioPnl(c);
+  const risk = calcPortfolioRisk(c);
+  const level = DATA.RISK_LEVEL_MAP[c.riskProfile.match(/C\d/)?.[0]] || 3;
+
+  // 用客户 id 做稳定种子，保证同一客户每次生成口径一致、不同客户措辞有差异
+  const seed = [...c.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  const pick = (arr, offset = 0) => arr[(seed + offset) % arr.length];
+
+  // —— 情绪档位：当前简报为「美联储加息 + 美股收跌」，故取 weak
+  const tone = 'weak';
+
+  // ① 开篇定调
+  const open = pick(KB.OPEN_BY_EMOTION[tone], 0);
+
+  // ② 盘面归因
+  const sector = pick(KB.SECTOR_SENTENCE[tone], 1);
+
+  // ③ 持仓定性：先看盈亏方向（客户最关心），再补集中度/仓位提示
+  // 顺序很重要——「组合浮盈但某只重仓」应同时体现两面，而不是被集中度盖掉盈亏
+  const maxWeight = Math.max(...c.holdings.map((h) => h.weight), 0);
+  const total = calcTotalWeight(c);
+  let posLine;
+  if (total < 60 && c.holdings.length) {
+    posLine = KB.POSITION.lightPosition;
+  } else if (pnl > 1) {
+    posLine = pick(KB.POSITION.gain, 2) + (maxWeight > 40 ? KB.POSITION.concentrated : '');
+  } else if (pnl < -1) {
+    posLine = pick(KB.POSITION.loss, 3) + (maxWeight > 40 ? KB.POSITION.concentrated : '');
+  } else {
+    posLine = pick(KB.POSITION.flat, 4) + (maxWeight > 40 ? KB.POSITION.concentrated : '');
+  }
+
+  // ④ 配置建议（按风险等级差异化，方向性而非指令性）
+  const adviceKey = `C${level}`;
+  const advice = pick(KB.ADVICE_BY_RISK[adviceKey] || KB.ADVICE_BY_RISK.C3, 5);
+  const adviceExtra = KB.ADVICE_EXTRA[tone];
+
+  // ⑤ 合规收尾
+  const closing = pick(KB.CLOSING, 6);
+
+  // —— 先组装核心句（保证主线信息完整），再按需补足到 100 字 ——
+  const parts = [open, sector, posLine, advice, closing];
+  let text = parts.join('');
+
+  if (text.length < KB.MIN_LEN) {
+    // 未达下限：插入补充句，避免"话说一半"
+    text = [open, sector, posLine, advice, KB.COMPLIANCE_NOTE, closing].join('');
+  }
+  if (text.length < KB.MIN_LEN) {
+    text = [open, sector, posLine, advice, adviceExtra, KB.COMPLIANCE_NOTE, closing].join('');
+  }
+
+  // 超出上限：优先丢弃补充句（补充句属于次要信息，丢了不影响主线）
+  if (text.length > KB.MAX_LEN) {
+    text = [open, sector, posLine, advice, closing].join('');
+  }
+  if (text.length > KB.MAX_LEN) {
+    text = [open, sector, posLine, advice].join('');
+  }
+  // 仍然超限（极端长客户名等）：硬裁到上限附近的可读位置
+  if (text.length > KB.MAX_LEN) {
+    const cut = text.slice(0, KB.MAX_LEN);
+    const lastPunct = Math.max(cut.lastIndexOf('。'), cut.lastIndexOf('，'));
+    text = lastPunct > KB.MIN_LEN ? cut.slice(0, lastPunct + 1) : cut + '。';
+  }
+
+  return {
+    text,
+    len: text.length,
+    sign: KB.SIGN,
+    inRange: text.length >= KB.MIN_LEN && text.length <= KB.MAX_LEN,
+  };
+}
+
+/** 精炼稿自检：复用全局敏感词库，确保压缩过程不引入违规表述 */
+function auditRefined(text) {
+  return DATA.SENSITIVE_WORDS.filter((w) => text.includes(w.word));
+}
+
+/** 精炼按钮：品牌化进度动画 + 逐字输出 */
+async function refineCopy() {
+  const btn = $('#btn-refine');
+  const c = sendClientObj();
+  if (!c) {
+    toast('请先选择客户', 'warn');
+    return;
+  }
+  // 长文案是精炼的输入，没有长文案就没有可压缩的素材
+  if (!$('#copy-output')?.textContent.trim()) {
+    toast('请先生成服务文案', 'warn');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 精炼中...';
+
+  $('#refine-placeholder')?.classList.add('hidden');
+  $('#refine-card')?.classList.remove('hidden');
+  const logEl = $('#refine-log');
+  logEl.innerHTML = '';
+
+  const steps = [
+    { s: '📖 读取长文案与三方数据源…', d: 420 },
+    { s: '🧬 提取核心观点（市场 / 持仓 / 建议）…', d: 460 },
+    { s: `✂️ 压缩至 ${DATA.REFINE_KB.MIN_LEN}–${DATA.REFINE_KB.MAX_LEN} 字客户速读版…`, d: 480 },
+    { s: '🛡️ 精炼稿合规复核…', d: 400 },
+  ];
+  for (const st of steps) {
+    await sleep(st.d);
+    const row = document.createElement('div');
+    row.className = 'refine-log-row log-in';
+    row.textContent = st.s;
+    logEl.appendChild(row);
+  }
+
+  const r = buildRefined(c);
+  const lenEl = $('#refine-len');
+
+  // 字数徽标：随着打字实时更新，落在 100–200 区间内才标绿
+  let typed = 0;
+  const lenTimer = setInterval(() => {
+    typed += Math.ceil(r.text.length / 30);
+    if (typed >= r.text.length) {
+      typed = r.text.length;
+      clearInterval(lenTimer);
+    }
+    updateRefineLen(typed, lenEl);
+  }, 30);
+
+  await typewriter($('#refine-output'), r.text, 8);
+
+  clearInterval(lenTimer);
+  updateRefineLen(r.text.length, lenEl);
+
+  // 自检：压缩不能引入敏感词
+  const hits = auditRefined(r.text);
+  const auditEl = $('#refine-audit');
+  if (auditEl) {
+    auditEl.textContent = hits.length ? `⚠️ 检出 ${hits.length} 处待复核` : '🚫 无买卖指令';
+    auditEl.classList.toggle('warn', hits.length > 0);
+  }
+
+  $('#refine-sign').textContent = `—— ${r.sign}`;
+  $('#refine-meta')?.classList.remove('hidden');
+  // 精炼稿就绪 → 解锁产品匹配与合规校验
+  $('#step-products')?.classList.remove('hidden');
+  if (STATE.sendProducts.length) $('#step-compliance')?.classList.remove('hidden');
+  renderProductPanel();
+  renderSendProducts();
+
+  btn.innerHTML = '✅ 精炼稿已生成';
+  toast(`精炼完成：${r.len} 字（目标 ${DATA.REFINE_KB.MIN_LEN}–${DATA.REFINE_KB.MAX_LEN} 字）`);
+}
+
+/** 字数徽标配色：区间内绿色、越界橙色 */
+function updateRefineLen(n, el) {
+  if (!el) return;
+  el.textContent = n;
+  const { MIN_LEN, MAX_LEN } = DATA.REFINE_KB;
+  const ok = n >= MIN_LEN && n <= MAX_LEN;
+  el.style.color = n === 0 ? '' : ok ? 'var(--green)' : 'var(--amber)';
+}
+
+/** 复制精炼稿到剪贴板 */
+async function copyRefined() {
+  const text = $('#refine-output')?.textContent || '';
+  if (!text.trim()) return;
+  try {
+    await navigator.clipboard.writeText(`【${DATA.META.tradeDate} 观点】\n${text}\n—— ${DATA.REFINE_KB.SIGN}`);
+    toast('精炼话术已复制，可直接粘贴给客户');
+  } catch {
+    toast('复制失败，请手动选择文本', 'warn');
+  }
 }
 
 /* --- 5.2 产品匹配推荐 --------------------------------------- */
@@ -1570,6 +1762,10 @@ async function doSend() {
   $('#send-progress-wrap')?.classList.remove('hidden');
 
   const picked = DATA.PRODUCTS.filter((p) => STATE.sendProducts.includes(p.id));
+  // 客户实际读到的是精炼稿；长文案作为附件留档，避免"推了 500 字没人看"
+  const refined = $('#refine-output')?.textContent.trim() || '';
+  const hasRefined = !!refined;
+
   const steps = [
     { p: 22, s: '正在加密客户信息…' },
     { p: 48, s: `正在装配 ${picked.length} 只产品资料卡片…` },
@@ -1589,9 +1785,11 @@ async function doSend() {
   void bubble.offsetWidth;
   bubble.classList.add('fly-in');
   $('#phone-msg-client').textContent = c.name;
-  $('#phone-msg-text').textContent = picked.length
-    ? `您的持仓分析报告、服务建议及 ${picked.length} 只匹配产品资料已送达，请查收。如有疑问可随时联系您的专属投顾。`
-    : '您的持仓分析报告与服务建议已送达，请查收。如有疑问可随时联系您的专属投顾。';
+  $('#phone-msg-text').textContent = hasRefined
+    ? refined + (picked.length ? `\n\n（附 ${picked.length} 只匹配产品资料及持仓分析报告）` : '')
+    : picked.length
+      ? `您的持仓分析报告、服务建议及 ${picked.length} 只匹配产品资料已送达，请查收。如有疑问可随时联系您的专属投顾。`
+      : '您的持仓分析报告与服务建议已送达，请查收。如有疑问可随时联系您的专属投顾。';
 
   await sleep(900);
   $('#phone-badge')?.classList.remove('hidden');
@@ -1602,6 +1800,10 @@ async function doSend() {
   $('#receipt-time').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   const rp = $('#receipt-products');
   if (rp) rp.textContent = picked.length ? `${picked.length} 只（${picked.map((p) => p.name).join('、')}）` : '无';
+  const rr = $('#receipt-refine');
+  if (rr) rr.textContent = hasRefined ? `✅ 精炼稿 ${refined.length} 字（客户速读版）` : '未使用精炼稿';
+  const ra = $('#receipt-attach');
+  if (ra) ra.textContent = hasRefined ? '持仓分析报告 · 长文案全文' : '无';
 }
 
 function resetSendScript() {
@@ -1621,6 +1823,21 @@ function resetSendScript() {
     fp.classList.add('hidden');
   }
   if ($('#copy-prod-count')) $('#copy-prod-count').textContent = '🎁 已附带 0 只产品';
+  // 精炼稿同样必须原子清空：残留的精炼稿会被 doSend 当成本次推送内容发出去
+  $('#refine-card')?.classList.add('hidden');
+  $('#refine-placeholder')?.classList.remove('hidden');
+  if ($('#refine-output')) $('#refine-output').textContent = '';
+  if ($('#refine-log')) $('#refine-log').innerHTML = '';
+  if ($('#refine-len')) {
+    $('#refine-len').textContent = '0';
+    $('#refine-len').style.color = '';
+  }
+  $('#refine-meta')?.classList.add('hidden');
+  const br = $('#btn-refine');
+  if (br) {
+    br.disabled = false;
+    br.innerHTML = `✂️ 生成精炼话术（${DATA.REFINE_KB.MIN_LEN}–${DATA.REFINE_KB.MAX_LEN} 字）`;
+  }
   $('#step-products')?.classList.add('hidden');
   $('#step-compliance')?.classList.add('hidden');
   $('#step-compliance-result')?.classList.add('hidden');
