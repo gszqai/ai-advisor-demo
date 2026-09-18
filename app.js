@@ -289,6 +289,8 @@ function switchTab(tab) {
   STATE.activeTab = tab;
   $$('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.dataset.tab === tab));
+  // 页面标题随 Tab 切换，替代原先三页共用一块常驻大标题
+  $$('.page-head').forEach((h) => h.classList.toggle('hidden', h.dataset.head !== tab));
   // 进入发送页时，默认锁定为当前正在查看的客户，保持「简报 × 持仓 × 产品」链路一致
   if (tab === 'send') syncSendClientChip();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -312,11 +314,14 @@ function initMarketTab() {
   const btnCompare = $('#btn-compare');
 
   // 渲染美股行情卡片
+  // close 可能缺失（数据源未提供收盘点位，如费城半导体），此时显示占位符而非抛错。
   $('#market-strip').innerHTML = DATA.US_MARKET.map(
     (m) => `
     <div class="mkt-card">
       <div class="mkt-name">${m.name} <span class="mkt-code">${m.code}</span></div>
-      <div class="mkt-close">${m.close.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+      <div class="mkt-close">${
+        Number.isFinite(m.close) ? m.close.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '<span class="mkt-na">—</span>'
+      }</div>
       <div class="mkt-chg ${m.chg >= 0 ? 'up' : 'down'}">
         ${m.chg >= 0 ? '▲' : '▼'} ${Math.abs(m.chg).toFixed(2)}%
       </div>
@@ -337,10 +342,11 @@ function initMarketTab() {
   ).join('');
 
   // 渲染宏观变量（国内优先，海外次之）
+  // 地域标识改用自绘色块（region-pill）——国旗 emoji 在部分 Windows 环境渲染为字母
   $('#macro-strip').innerHTML = DATA.MACRO.map(
     (m) => `
     <div class="macro-item${m.region === 'us' ? ' ovs' : ''}">
-      <span class="macro-name">${m.region === 'us' ? '🌎 ' : '🇨🇳 '}${m.name}</span>
+      <span class="macro-name"><i class="region-pill ${m.region === 'us' ? 'us' : 'cn'}">${m.region === 'us' ? 'US' : 'CN'}</i>${m.name}</span>
       <span class="macro-val">${m.value}</span>
       ${Number(m.delta) === 0 || m.delta === undefined ? '' : `<span class="macro-delta ${m.delta > 0 ? 'up' : 'down'}">${m.delta > 0 ? '+' : ''}${m.delta}</span>`}
     </div>`
@@ -391,7 +397,7 @@ function renderNews() {
       const v = n.top ? { key: 'top', text: '最高优先级' } : verdictOf(n.sources.length);
       const chips = DATA.NEWS_CHANNELS.map((c) => {
         const hit = n.sources.includes(c.id);
-        return `<span class="src-chip ${hit ? 'on' : ''}" title="${esc(c.name)}${hit ? ' · 已报道' : ' · 未报道'}">${c.icon}</span>`;
+        return `<span class="src-chip ${hit ? 'on' : ''}" title="${esc(c.name)}${hit ? ' · 已报道' : ' · 未报道'}">${esc(c.abbr)}</span>`;
       }).join('');
 
       return `
@@ -575,7 +581,8 @@ function toggleCompare() {
  * 4. 引擎二：客户持仓（可编辑）
  * ============================================================ */
 
-const AVATAR_COLORS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444', '#14b8a6'];
+// 头像底色：浅色主题下取加深一档的色值，保证白底上的对比度
+const AVATAR_COLORS = ['#059669', '#4f46e5', '#b45309', '#be185d', '#0e7490', '#6d28d9', '#b91c1c', '#0f766e'];
 
 function initClientTab() {
   renderClientSwitch();
@@ -854,6 +861,22 @@ function showNextStepHint() {
 
 let editingClientId = null;
 
+/**
+ * 从姓名中取姓氏作为头像字。
+ * 兼容「安妮女士」「刘宸先生」这类全名 + 称谓的写法，避免出现「安」「刘」
+ * 与姓名字段首字相同造成的重复观感。
+ */
+function surnameOf(name) {
+  const n = String(name || '').trim();
+  if (!n) return '客';
+  const m = n.match(/^([\u4e00-\u9fa5])(?![\u4e00-\u9fa5]*先生|[\u4e00-\u9fa5]*女士)/);
+  if (n.length === 1) return n;
+  // 复姓优先
+  const compound = ['欧阳', '司马', '上官', '诸葛', '东方', '皇甫', '尉迟', '公孙', '慕容', '长孙', '宇文', '司徒', '鲜于', '独孤'];
+  if (compound.some((s) => n.startsWith(s))) return n.slice(0, 2);
+  return n.slice(0, 1);
+}
+
 function openClientModal(id) {
   editingClientId = id;
   const modal = $('#client-modal');
@@ -906,7 +929,7 @@ function saveClient() {
     STATE.clients.push({
       id,
       ...payload,
-      avatar: name.slice(0, 1),
+      avatar: surnameOf(name),
       color: AVATAR_COLORS[STATE.clients.length % AVATAR_COLORS.length],
       holdings: [],
     });
@@ -1157,11 +1180,14 @@ function initSendTab() {
     STATE.clients
       .map(
         (c) =>
-          `<button class="chip ${c.id === STATE.currentClient ? 'active' : ''}" data-client="${c.id}">${esc(c.avatar)} ${esc(c.name)}</button>`
+          `<button class="chip chip-person ${c.id === STATE.currentClient ? 'active' : ''}" data-client="${c.id}">` +
+          `<span class="chip-avatar" style="background:${c.color}">${esc(c.avatar)}</span>` +
+          `<span class="chip-label">${esc(c.name)}</span>` +
+          `</button>`
       )
       .join('') || '<span class="chip-empty">暂无客户</span>';
 
-  $$('.chip', cs).forEach((b) =>
+  $$('.chip-person', cs).forEach((b) =>
     b.addEventListener('click', () => {
       $$('.chip', cs).forEach((x) => x.classList.toggle('active', x === b));
       STATE.currentClient = b.dataset.client;
@@ -1213,7 +1239,9 @@ function sendClientObj() {
 /** 依据客户真实持仓动态拼装服务文案（三方融合：简报 + 持仓 + 产品） */
 function buildCopy(c) {
   const picked = DATA.PRODUCTS.filter((p) => STATE.sendProducts.includes(p.id));
-  const tpl = DATA.COPY_TEMPLATES[c.id];
+  const rawTpl = DATA.COPY_TEMPLATES[c.id];
+  // 模板以 {{cname}} 占位，渲染时注入客户姓名，保证改名后文案自动同步
+  const tpl = rawTpl ? rawTpl.replace(/\{\{cname\}\}/g, c.name) : '';
   if (tpl) return injectProducts(tpl, picked, c); // 六位初始客户使用精写版本
 
   // 自定义客户：用模板化生成
@@ -1391,6 +1419,122 @@ function fusionPanelHTML(prodCount) {
  *
  * 合规底线：无收益承诺、无买卖指令、不出现具体点位，署名统一为「国盛AI投顾老师」。
  */
+/**
+ * 按客户持仓结构挑选 1–2 只推荐产品，用于精炼稿的推荐句。
+ *
+ * 与 autoMatchProducts 按销售系数排序不同：这里按「持仓该怎么补」来挑，
+ * 因此不同客户会得到不同的产品，体现三方融合（简报 × 持仓 × 产品）。
+ *
+ * 适当性硬约束：product.riskLevel <= 客户 C 等级，超限产品一律不入选。
+ */
+function pickProductsForClient(c) {
+  if (!c || !c.holdings || !c.holdings.length) return { kind: 'general', products: [] };
+
+  const level = DATA.RISK_LEVEL_MAP[c.riskProfile.match(/C\d/)?.[0]] || 3;
+  const eligible = DATA.PRODUCTS.filter((p) => p.riskLevel <= level);
+  if (!eligible.length) return { kind: 'general', products: [] };
+
+  const active = c.holdings.filter((h) => Number(h.weight) > 0);
+  const total = calcTotalWeight(c);
+  const pnl = calcPortfolioPnl(c);
+  const maxWeight = Math.max(...c.holdings.map((h) => Number(h.weight) || 0), 0);
+
+  // 资产结构占比
+  const bondW = active
+    .filter((h) => h.type === '债券' || /债|标准券|固收/.test(h.industry || ''))
+    .reduce((s, h) => s + (Number(h.weight) || 0), 0);
+  const privW = active
+    .filter((h) => h.type === '私募基金')
+    .reduce((s, h) => s + (Number(h.weight) || 0), 0);
+
+  const has = (cat, kw) =>
+    eligible.filter((p) => p.cat === cat && (!kw || kw.test(p.sub)));
+  const firstBy = (arr, n = 2) =>
+    [...arr].sort((a, b) => (b.salesCoef || 0) - (a.salesCoef || 0)).slice(0, n);
+
+  const bondRatio = total > 0 ? bondW / total : 0;
+  const privRatio = total > 0 ? privW / total : 0;
+  // 权益端最大单一持仓：判断「集中度」必须排除债券/标准券等现金管理工具，
+  // 否则标准券占比高的客户会被误判为持仓集中。
+  const maxEquityW = Math.max(
+    ...active.filter((h) => !(h.type === '债券' || /债|标准券|固收/.test(h.industry || ''))).map((h) => Number(h.weight) || 0),
+    0
+  );
+
+  // 优先级：固收占比过高 → 集中度 → 私募主仓 → 权益浮亏 → 兜底
+  // 固收优先于集中度：债券/标准券占比高的客户，核心矛盾是收益弹性不足而非持仓集中。
+  if (bondRatio > 0.6) {
+    const pool = eligible.filter((p) => /固收\+|偏债|收益增强|纯债/.test(p.sub + p.highlight));
+    const picked = firstBy(pool.length ? pool : has('公募'), 2);
+    if (picked.length) return { kind: 'enhance', products: picked };
+  }
+  if (maxEquityW > 40) {
+    const pool = eligible.filter((p) => /指数增强|ETF|全指|中证/.test(p.sub) || /分散|宽基/.test(p.highlight));
+    const picked = firstBy(pool.length ? pool : eligible);
+    if (picked.length) return { kind: 'diversify', products: picked };
+  }
+  // 私募为主：优先同类别量化/指增产品，便于横向比较
+  if (privRatio > 0.5) {
+    const pool = eligible.filter((p) => p.cat === '私募');
+    const picked = firstBy(pool.length ? pool : eligible, 2);
+    if (picked.length) return { kind: 'quant', products: picked };
+  }
+  // 权益浮亏：红利低波方向做防御，但若该客户持仓为科技成长主线，
+  // 则改推同主线的指数工具，避免「推荐与持仓逻辑相悖」。
+  if (pnl < -1) {
+    const techHeavy = /科技|半导体|TMT|电子|通信/.test(c.style || '') ||
+      active.filter((h) => /半导体|电子|通信|计算机|科技|IP|封测/.test(h.industry || '')).reduce((s, h) => s + h.weight, 0) / (total || 1) > 0.4;
+    // 科技池必须限定为科技主题产品：不能用「指数增强」这种泛化词，
+    // 否则会把红利指数增强也捞进来，出现「科技客户被推荐红利」的错配。
+    const techPool = eligible.filter(
+      (p) => /芯片|半导体|科技|成长|中证500|中证1000|全指/.test(p.name + p.sub) && !/红利|低波|高股息/.test(p.name + p.sub)
+    );
+    const pool = techHeavy
+      ? techPool
+      : eligible.filter((p) => /红利|低波|高股息/.test(p.name + p.sub + p.highlight));
+    const picked = firstBy(pool.length ? pool : eligible, 2);
+    if (picked.length) return { kind: techHeavy ? 'growth' : 'defensive', products: picked };
+  }
+
+  return { kind: 'general', products: firstBy(eligible, 2) };
+}
+
+/** 推荐句：只点名产品，措辞为「可关注」，不给买卖指令 */
+function buildProductHint(c) {
+  const KB = DATA.REFINE_KB;
+  const { kind, products } = pickProductsForClient(c);
+  if (!products.length) return '';
+  const tpl = KB.PRODUCT_HINT[kind] || KB.PRODUCT_HINT.general;
+  return tpl.replace('{names}', products.map((p) => `「${p.name}」`).join('、'));
+}
+
+/**
+ * 从隔夜美股行情推导情绪档位，供精炼稿措辞分档使用。
+ *
+ * 原来这里写死 'weak'，一旦行情数据更换（例如从「美股收跌」换成
+ * 「分化上涨」），精炼稿措辞就会与简报事实脱钩。改为按指数涨跌幅
+ * 的分布实时判定，行情变了档位自动跟着变。
+ *
+ * 判定规则（以道指 / 标普 / 纳指三只宽基为主，费半作为科技端修正项）：
+ *   · 收涨家数 ≥ 2 且平均涨幅 > 0.3%           → strong（外围回暖）
+ *   · 收跌家数 ≥ 2 且平均跌幅 > 0.3%           → weak（外围承压）
+ *   · 其余（涨跌互现 / 幅度收敛在 ±0.3% 内）    → mixed（方向未明）
+ * 注：三大指数跌幅均 < 0.3% 时不判 weak，避免把「基本收平」说成「收跌」。
+ */
+function deriveTone() {
+  const list = (DATA.US_MARKET || []).filter((m) => typeof m.chg === 'number');
+  if (!list.length) return 'mixed';
+
+  const up = list.filter((m) => m.chg > 0);
+  const down = list.filter((m) => m.chg < 0);
+  const avgUp = up.length ? up.reduce((s, m) => s + m.chg, 0) / up.length : 0;
+  const avgDown = down.length ? down.reduce((s, m) => s + m.chg, 0) / down.length : 0;
+
+  if (up.length >= 2 && avgUp > 0.3) return 'strong';
+  if (down.length >= 2 && avgDown < -0.3) return 'weak';
+  return 'mixed';
+}
+
 function buildRefined(c) {
   const KB = DATA.REFINE_KB;
   if (!c) return '';
@@ -1403,8 +1547,8 @@ function buildRefined(c) {
   const seed = [...c.id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
   const pick = (arr, offset = 0) => arr[(seed + offset) % arr.length];
 
-  // —— 情绪档位：当前简报为「美联储加息 + 美股收跌」，故取 weak
-  const tone = 'weak';
+  // —— 情绪档位：由隔夜美股行情实时推导，行情变更时措辞自动跟随 ——
+  const tone = deriveTone();
 
   // ① 开篇定调
   const open = pick(KB.OPEN_BY_EMOTION[tone], 0);
@@ -1416,11 +1560,17 @@ function buildRefined(c) {
   // 顺序很重要——「组合浮盈但某只重仓」应同时体现两面，而不是被集中度盖掉盈亏
   const maxWeight = Math.max(...c.holdings.map((h) => h.weight), 0);
   const total = calcTotalWeight(c);
+  // 浮盈结构：盈利标的占比高 → 分散浮盈；仅少数标的贡献 → 收益集中
+  const winners = c.holdings.filter((h) => holdingPnl(h) > 0 && Number(h.weight) > 0);
+  const active = c.holdings.filter((h) => Number(h.weight) > 0);
+  const broadGain = active.length > 0 && winners.length / active.length >= 0.5;
+
   let posLine;
   if (total < 60 && c.holdings.length) {
     posLine = KB.POSITION.lightPosition;
   } else if (pnl > 1) {
-    posLine = pick(KB.POSITION.gain, 2) + (maxWeight > 40 ? KB.POSITION.concentrated : '');
+    posLine = (broadGain ? pick(KB.POSITION.gainBroad, 2) : pick(KB.POSITION.gainNarrow, 2)) +
+      (maxWeight > 40 ? KB.POSITION.concentrated : '');
   } else if (pnl < -1) {
     posLine = pick(KB.POSITION.loss, 3) + (maxWeight > 40 ? KB.POSITION.concentrated : '');
   } else {
@@ -1432,27 +1582,41 @@ function buildRefined(c) {
   const advice = pick(KB.ADVICE_BY_RISK[adviceKey] || KB.ADVICE_BY_RISK.C3, 5);
   const adviceExtra = KB.ADVICE_EXTRA[tone];
 
+  // ④b 产品推荐：按该客户持仓结构挑选，不同客户结果不同
+  const productHint = buildProductHint(c);
+
   // ⑤ 合规收尾
   const closing = pick(KB.CLOSING, 6);
 
-  // —— 先组装核心句（保证主线信息完整），再按需补足到 100 字 ——
-  const parts = [open, sector, posLine, advice, closing];
-  let text = parts.join('');
+  // 持仓定性里若已含「集中度」提示，而产品推荐句本身就是在讲分散，
+  // 两句语义重复。此时保留信息量更高的产品推荐句，避免超限被裁掉。
+  const dedupPos = productHint && KB.PRODUCT_HINT.diversify.split('{names}')[0] &&
+    /集中/.test(productHint) && /集中/.test(posLine)
+    ? posLine.replace(KB.POSITION.concentrated, '')
+    : posLine;
+
+  // —— 组装顺序即裁剪优先级：越靠前越核心，超限时从后往前丢 ——
+  // 产品推荐句属于本次修改的重点交付物，与配置建议同级保留。
+  const core = [open, sector, dedupPos, advice, productHint, closing].filter(Boolean);
+  let text = core.join('');
 
   if (text.length < KB.MIN_LEN) {
     // 未达下限：插入补充句，避免"话说一半"
-    text = [open, sector, posLine, advice, KB.COMPLIANCE_NOTE, closing].join('');
+    text = [open, sector, dedupPos, advice, productHint, KB.COMPLIANCE_NOTE, closing].filter(Boolean).join('');
   }
   if (text.length < KB.MIN_LEN) {
-    text = [open, sector, posLine, advice, adviceExtra, KB.COMPLIANCE_NOTE, closing].join('');
+    text = [open, sector, dedupPos, advice, productHint, adviceExtra, KB.COMPLIANCE_NOTE, closing].filter(Boolean).join('');
   }
 
-  // 超出上限：优先丢弃补充句（补充句属于次要信息，丢了不影响主线）
+  // 超出上限：逐级丢弃非核心句（先丢合规补白，再丢产品推荐）
   if (text.length > KB.MAX_LEN) {
-    text = [open, sector, posLine, advice, closing].join('');
+    text = [open, sector, dedupPos, advice, productHint, closing].filter(Boolean).join('');
   }
   if (text.length > KB.MAX_LEN) {
-    text = [open, sector, posLine, advice].join('');
+    text = [open, sector, dedupPos, advice, productHint].filter(Boolean).join('');
+  }
+  if (text.length > KB.MAX_LEN) {
+    text = [open, sector, dedupPos, advice].filter(Boolean).join('');
   }
   // 仍然超限（极端长客户名等）：硬裁到上限附近的可读位置
   if (text.length > KB.MAX_LEN) {
@@ -1469,9 +1633,24 @@ function buildRefined(c) {
   };
 }
 
+/**
+ * 敏感词命中检测。
+ *
+ * 注意「无风险利率」是央行/货币政策语境下的标准术语（指国债等无信用风险资产的
+ * 利率），与「无风险」作为收益承诺表述的性质完全不同。若直接做 includes 判断，
+ * 会把「无风险利率低位」这类合规表述误判为违规。因此先剥离该术语再做匹配。
+ */
+const SENSITIVE_EXEMPT = [/无风险利率/g];
+
+function scanSensitive(text) {
+  let probe = String(text || '');
+  SENSITIVE_EXEMPT.forEach((re) => { probe = probe.replace(re, ''); });
+  return DATA.SENSITIVE_WORDS.filter((w) => probe.includes(w.word));
+}
+
 /** 精炼稿自检：复用全局敏感词库，确保压缩过程不引入违规表述 */
 function auditRefined(text) {
-  return DATA.SENSITIVE_WORDS.filter((w) => text.includes(w.word));
+  return scanSensitive(text);
 }
 
 /** 精炼按钮：品牌化进度动画 + 逐字输出 */
@@ -1884,7 +2063,7 @@ async function runEggCheck() {
 
   await sleep(900);
 
-  const hits = DATA.SENSITIVE_WORDS.filter((w) => text.includes(w.word));
+  const hits = scanSensitive(text);
 
   if (hits.length === 0) {
     res.innerHTML = `

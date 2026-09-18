@@ -16,28 +16,42 @@
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand">
-        <div class="brand-logo">📈</div>
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17.5 8.5 11l3.5 3.5L21 5"/>
+            <path d="M15.5 5H21v5.5"/>
+          </svg>
+        </div>
         <div class="brand-text">
           <b>国盛智投AI助手</b>
-          <span>GUOSHENG AI ADVISOR</span>
+          <span>Guosheng AI Advisor</span>
         </div>
       </div>
 
       <nav class="tabs">
-        <button class="tab-btn active" data-tab="market">① 盘前简报</button>
-        <button class="tab-btn" data-tab="client">② 客户持仓</button>
-        <button class="tab-btn" data-tab="send">③ 一键发送</button>
+        <button class="tab-btn active" data-tab="market"><span class="tab-num">1</span>盘前简报</button>
+        <button class="tab-btn" data-tab="client"><span class="tab-num">2</span>客户持仓</button>
+        <button class="tab-btn" data-tab="send"><span class="tab-num">3</span>一键发送</button>
       </nav>
 
-      <div class="live-dot">DEMO ONLINE</div>
+      <div class="live-dot">DEMO</div>
     </div>
   </header>
 
-  <!-- ==================== 英雄区 ==================== -->
-  <section class="hero">
-    <div class="hero-tag">⚡ 简报 × 持仓 × 产品 · 三方融合全链路</div>
-    <h1>让 AI 跑完<em>从盘前到客户</em>的每一环</h1>
-    <p>点击触发 Cron，生成以国内政策为主导（国内 60% / 海外 40%）的盘前简报；结合真实客户持仓与公司产品池，一键产出可推送的合规服务文案。</p>
+  <!-- ==================== 页面标题（随 Tab 切换） ==================== -->
+  <section class="page-head" data-head="market">
+    <h1>盘前简报</h1>
+    <p>点击触发定时任务，AI 从 10 个渠道聚合隔夜信息，生成以国内政策为主导（国内 60% / 海外 40%）的盘前简报，并自动完成合规审查。</p>
+  </section>
+
+  <section class="page-head hidden" data-head="client">
+    <h1>客户持仓</h1>
+    <p>查看客户的档案与投资组合，逐笔穿透持仓标的风险，识别风险等级错配与集中度问题。所有数据保存在本地浏览器，支持编辑。</p>
+  </section>
+
+  <section class="page-head hidden" data-head="send">
+    <h1>一键发送</h1>
+    <p>把「盘前简报 × 客户持仓 × 公司产品池」三方融合，生成可直接推送的服务文案，经三重合规闸门校验后送达客户。</p>
   </section>
 
   <!-- ============================================================
@@ -45,16 +59,25 @@
        ============================================================ -->
   <section class="tab-panel active" data-tab="market">
 
-    <!-- 隔夜美股 -->
-    <div class="strip-label"><span>🌎 隔夜美股收盘</span><em>OVERSEAS OVERNIGHT</em></div>
-    <div class="market-strip" id="market-strip"></div>
-
-    <!-- A 股昨日收盘 -->
-    <div class="strip-label"><span>🇨🇳 A 股昨日收盘</span><em>PREVIOUS CLOSE</em></div>
+    <!-- A 股昨日收盘（第一行：A 股定价主导变量在国内） -->
+    <div class="strip-label">
+      <span><i class="region-pill cn">CN</i>A 股昨日收盘</span>
+      <em>Previous Close · 9/17</em>
+    </div>
     <div class="market-strip cn" id="cn-market-strip"></div>
 
+    <!-- 隔夜美股（第二行：海外只提供情绪与风险偏好传导） -->
+    <div class="strip-label us-block">
+      <span><i class="region-pill us">US</i>隔夜美股收盘</span>
+      <em>Overseas Overnight · 9/17</em>
+    </div>
+    <div class="market-strip" id="market-strip"></div>
+
     <!-- 宏观变量 -->
-    <div class="strip-label"><span>📉 关键变量</span><em>MACRO VARIABLES · 国内优先 / 海外次之</em></div>
+    <div class="strip-label macro-block">
+      <span>关键变量</span>
+      <em>Macro Variables · 国内优先 / 海外次之</em>
+    </div>
     <div class="macro-strip" id="macro-strip"></div>
 
     <!-- 信源配比 -->
@@ -66,7 +89,7 @@
         <span class="card-icon">📡</span>
         <div>
           <h2>隔夜资讯聚合 · 多源交叉验证</h2>
-          <div class="sub">10 CHANNELS · CROSS-VERIFIED · 78 RAW → 15 SELECTED · 国内 60% / 海外 40%</div>
+          <div class="sub">10 CHANNELS · CROSS-VERIFIED · 82 RAW → 15 SELECTED · 国内 60% / 海外 40%</div>
         </div>
         <div class="head-right">
           <button class="btn btn-sm btn-ghost" id="btn-legend">ⓘ 优先级规则</button>
@@ -128,7 +151,7 @@
           <span class="card-icon">📝</span>
           <div>
             <h2>盘前简报生成</h2>
-            <div class="sub">AGENT OUTPUT · 596 WORDS · 国内主导</div>
+            <div class="sub">AGENT OUTPUT · 687 WORDS · 国内主导</div>
           </div>
           <div class="head-right">
             <button class="btn btn-sm btn-ghost hidden" id="btn-compare">📊 对比人工版本</button>
@@ -291,7 +314,7 @@
         <!-- 步骤 1 -->
         <div class="card">
           <div class="card-head">
-            <span class="card-icon">①</span>
+            <span class="card-icon steps">①</span>
             <div>
               <h2>选择客户 · 生成服务文案</h2>
               <div class="sub">COPYWRITER AGENT · 简报 × 持仓 × 产品 三方融合</div>
@@ -357,7 +380,7 @@
         <!-- 步骤 2 -->
         <div class="card hidden" id="step-products">
           <div class="card-head">
-            <span class="card-icon">②</span>
+            <span class="card-icon steps">②</span>
             <div>
               <h2>产品匹配推荐</h2>
               <div class="sub">PRODUCT MATCHING · 适当性校验</div>
@@ -379,7 +402,7 @@
         <!-- 步骤 3 -->
         <div class="card hidden" id="step-compliance">
           <div class="card-head">
-            <span class="card-icon">③</span>
+            <span class="card-icon steps">③</span>
             <div>
               <h2>合规校验</h2>
               <div class="sub">COMPLIANCE AGENT · 6 CHECKS</div>
@@ -396,7 +419,7 @@
       <div>
         <div class="card">
           <div class="card-head">
-            <span class="card-icon">④</span>
+            <span class="card-icon steps">④</span>
             <div>
               <h2>选择渠道 · 一键发送</h2>
               <div class="sub">DELIVERY CHANNEL</div>
@@ -405,7 +428,7 @@
 
           <div class="channel-list" id="channel-list" style="margin-bottom:15px"></div>
 
-          <div class="receipt" style="background:rgba(255,255,255,0.03);border-color:var(--border);margin:0 0 15px">
+          <div class="receipt" style="background:var(--fill-1);border-color:var(--border);margin:0 0 15px">
             <div class="receipt-row"><span>发送对象</span><b id="send-target">—</b></div>
             <div class="receipt-row"><span>发送渠道</span><b id="send-channel">企业微信</b></div>
             <div class="receipt-row"><span>附带产品</span><b id="send-products">—</b></div>
@@ -452,8 +475,8 @@
           </div>
         </div>
 
-        <div class="card" style="background:rgba(139,92,246,0.05);border-color:rgba(139,92,246,0.24)">
-          <div style="font-size:12.5px;color:#c4b5fd;font-weight:600;margin-bottom:8px">🛡️ 合规护城河</div>
+        <div class="card" style="background:rgba(124,58,237,0.04);border-color:rgba(124,58,237,0.2)">
+          <div style="font-size:12.5px;color:var(--purple);font-weight:600;margin-bottom:8px">🛡️ 合规护城河</div>
           <p style="font-size:12px;color:var(--text-dim);line-height:1.95">
             AI 输出层强制经过三重闸门：敏感词库比对 → 收益承诺检测 → 买卖建议识别。
             任一命中即阻断下发并回退人工复核队列。所有文案强制附加免责声明，全流程留痕可追溯。
